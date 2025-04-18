@@ -24,7 +24,7 @@ def verify_user(email, password):
         cursor = conn.cursor()
 
         hashed_password = hash_password(password)
-        query = "SELECT * FROM users WHERE email = %s AND password_hash = %s"
+        query = "SELECT * FROM user WHERE email = %s AND password = %s"
         cursor.execute(query, (email, hashed_password))
         result = cursor.fetchone()
 
@@ -65,6 +65,45 @@ def logout():
     session.pop('user', None)
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if password != confirm_password:
+            flash('Passwords do not match.', 'danger')
+            return redirect(url_for('register'))
+
+        hashed_password = hash_password(password)
+
+        try:
+            conn = mysql.connector.connect(**config)
+            cursor = conn.cursor()
+
+            # Check if user already exists
+            cursor.execute("SELECT * FROM user WHERE email = %s", (email,))
+            if cursor.fetchone():
+                flash('User already exists with that email.', 'warning')
+                return redirect(url_for('register'))
+
+            # Insert new user
+            cursor.execute("INSERT INTO user (email, password) VALUES (%s, %s)", (email, hashed_password))
+            conn.commit()
+            flash('Registration successful! You can now log in.', 'success')
+            return redirect(url_for('login'))
+
+        except mysql.connector.Error as err:
+            print(f"Error: {err}")
+            flash('An error occurred. Please try again later.', 'danger')
+
+        finally:
+            cursor.close()
+            conn.close()
+
+    return render_template('register.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
