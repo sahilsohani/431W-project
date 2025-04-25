@@ -6,6 +6,51 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="p-5">
+    <style>
+        .navbar {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          display: flex;
+          background-color: #333;
+          padding: 10px;
+          align-items: center;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Optional shadow */
+        }
+      
+        .navbar a {
+          color: white;
+          padding: 10px;
+          text-decoration: none;
+        }
+      
+        .navbar a:hover {
+          background-color: #575757;
+        }
+      
+        .back-button {
+          margin-right: auto;
+          background-color: #444;
+          color: white;
+          border: none;
+          padding: 10px 15px;
+          cursor: pointer;
+        }
+      
+        .back-button:hover {
+          background-color: #666;
+        }
+      </style>
+      
+    <div class="navbar">
+        <button class="back-button" onclick="history.back()">Back</button>
+        <a href="{{ url_for('seller_dashboard') }}">Home</a>
+
+
+
+
+    </div>
+    
     <div class="container">
         <h2 class="mb-4">Welcome, Seller!</h2>
         <div class="list-group">
