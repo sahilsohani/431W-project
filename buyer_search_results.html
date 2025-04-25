@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Results</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-4">
+    <div class="container">
+        <h2 class="mb-4">Search Results for "{{ query }}"</h2>
+
+        <!-- Filters -->
+        <form method="GET" class="row g-3 mb-4">
+            <input type="hidden" name="q" value="{{ query }}">
+
+            <div class="col-md-4">
+                <label for="category" class="form-label">Filter by Category</label>
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.category_name }}" {% if selected_category == cat.category_name %}selected{% endif %}>{{ cat.category_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Filter by Price Range</label>
+                <div class="input-group">
+                    <input type="number" name="min_price" class="form-control" placeholder="Min" value="{{ min_price }}">
+                    <input type="number" name="max_price" class="form-control" placeholder="Max" value="{{ max_price }}">
+                </div>
+            </div>
+
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+            </div>
+        </form>
+
+        {% if results %}
+        <div class="row">
+            {% for product in results %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">{{ product.detail[:100] }}...</p>
+                        <p class="card-text fw-bold">${{ product.price }}</p>
+                        <form method="POST" action="{{ url_for('add_to_cart', product_id=product.product_id) }}">
+                            <div class="input-group">
+                                <input type="number" name="quantity" value="1" min="1" class="form-control" required>
+                                <button type="submit" class="btn btn-primary">Add to Cart</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="alert alert-warning">No products found matching your search.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

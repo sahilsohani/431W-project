@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Browse Categories</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-5">
+    <div class="container">
+        <h2 class="mb-4">Browse {{ current_category if current_category else 'Categories' }}</h2>
+
+        {% if subcategories %}
+        <div class="row mb-4">
+            {% for sub in subcategories %}
+            <div class="col-md-4">
+                <div class="card p-3">
+                    <h5>{{ sub.category_name }}</h5>
+                    <a href="{{ url_for('view_categories', category_name=sub.category_name) }}" class="btn btn-sm btn-outline-primary mt-2">Explore</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if products %}
+        <h4 class="mb-3">Products in {{ current_category }}</h4>
+        <div class="row">
+            {% for product in products %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        <p class="card-text">{{ product.detail[:100] }}...</p>
+                        <p class="card-text fw-bold">${{ product.price }}</p>
+                        <form method="POST" action="{{ url_for('add_to_cart', product_id=product.product_id) }}">
+                            <div class="input-group">
+                                <input type="number" name="quantity" value="1" min="1" class="form-control" required>
+                                <button type="submit" class="btn btn-primary">Add to Cart</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif not subcategories %}
+        <p class="alert alert-info">No products or subcategories available in this category.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

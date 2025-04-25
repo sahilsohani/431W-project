@@ -269,7 +269,7 @@ try:
             title VARCHAR(255) NOT NULL,
             name VARCHAR(255) NOT NULL,
             detail TEXT,
-            stock INT,
+            stock INT CHECK (stock >= 0),
             price INT,
             status INT,
             PRIMARY KEY (product_id, seller_email),
