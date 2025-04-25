@@ -1,0 +1,31 @@
+{% extends 'seller_base.html' %}
+
+{% block title %}Update Seller Profile{% endblock %}
+
+{% block content %}
+<div class="card p-4" style="max-width: 500px; margin: auto;">
+    <h2 class="text-center mb-4">Update Profile (Seller)</h2>
+
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">Email:</label>
+            <input type="email" value="{{ user.email }}" disabled class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">New Password (optional):</label>
+            <input type="password" name="new_password" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Request Role Change:</label>
+            <select name="new_role" class="form-select">
+                <option value="">-- No Change --</option>
+                <option value="buyer">Switch to Buyer</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Update</button>
+    </form>
+</div>
+{% endblock %}

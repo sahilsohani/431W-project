@@ -1,0 +1,29 @@
+{% extends "buyer_base.html" %}
+{% block title %}{{ current_category.category_name }}{% endblock %}
+{% block content %}
+
+<h2>{{ current_category.category_name }}</h2>
+
+<h3>Subcategories</h3>
+<ul>
+    {% for cat in subcategories %}
+        <li><a href="{{ url_for('view_category', category_name=cat.category_name) }}">{{ cat.category_name }}</a></li>
+    {% else %}
+        <p>No subcategories.</p>
+    {% endfor %}
+</ul>
+
+<h3>Products</h3>
+<ul>
+    {% for product in products %}
+        <li>
+            <a href="{{ url_for('product_detail', product_id=product.product_id, seller_email=product.seller_email) }}">
+                {{ product.title }} - ${{ product.price }}
+            </a>
+        </li>
+    {% else %}
+        <p>No products in this category.</p>
+    {% endfor %}
+</ul>
+
+{% endblock %}

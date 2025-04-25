@@ -1,72 +1,80 @@
-<html lang="en">
+{% extends 'helpdesk_base.html' %}
+{% block title %}HelpDesk Dashboard{% endblock %}
+{% block content %}
 <head>
     <meta charset="UTF-8">
-    <title>All Requests</title>
+    <title>View All Requests</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+        function switchTab(tabName) {
+            document.getElementById('pending').style.display = 'none';
+            document.getElementById('resolved').style.display = 'none';
+            document.getElementById(tabName).style.display = 'block';
+        }
+    </script>
 </head>
 <body class="bg-light p-4">
-    <style>
-        .navbar {
-          position: sticky;
-          top: 0;
-          z-index: 1000;
-          display: flex;
-          background-color: #333;
-          padding: 10px;
-          align-items: center;
-          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3); /* Optional shadow */
-        }
-      
-        .navbar a {
-          color: white;
-          padding: 10px;
-          text-decoration: none;
-        }
-      
-        .navbar a:hover {
-          background-color: #575757;
-        }
-      
-        .back-button {
-          margin-right: auto;
-          background-color: #444;
-          color: white;
-          border: none;
-          padding: 10px 15px;
-          cursor: pointer;
-        }
-      
-        .back-button:hover {
-          background-color: #666;
-        }
-      </style>
-      
-    <div class="navbar">
-        <button class="back-button" onclick="history.back()">Back</button>
-        <a href="{{ url_for('helpdesk_dashboard') }}">Home</a>
-        <a href="{{ url_for('view_requests') }}">View Requests</a>
-        <a href="{{ url_for('resolve_requests') }}">Resolve Requests</a>
-        
-    
-    </div>
-    
-    
     <div class="container">
-        <h2 class="mb-4">📨 All Support Requests</h2>
-        {% if requests %}
-            <div class="list-group">
-                {% for req in requests %}
-                    <div class="list-group-item">
-                        <h5>From: {{ req.sender_email }}</h5>
-                        <p>Type: {{ req.request_type }}</p>
-                        <p>Description: {{ req.request_desc }}</p>
-                        <p>Status: {% if req.request_status == 1 %}Resolved{% else %}Open{% endif %}</p>
+        <h2 class="mb-4">📋 View All Requests</h2>
+
+        <div class="mb-3">
+            <button class="btn btn-outline-primary me-2" onclick="switchTab('pending')">Pending</button>
+            <button class="btn btn-outline-secondary" onclick="switchTab('resolved')">Resolved</button>
+        </div>
+
+        <div id="pending">
+            <h4>⏳ Pending Requests</h4>
+            {% set pending_requests = requests | selectattr("request_status", "equalto", 0) | list %}
+            {% if pending_requests %}
+                {% for req in pending_requests %}
+                    <div class="card p-3 mb-3">
+                        <p><strong>Sender:</strong> {{ req.sender_email }}</p>
+                        <p><strong>Description:</strong> {{ req.request_desc }}</p>
+                        <p><strong>HelpDesk:</strong> {{ req.helpdesk_staff_email }}</p>
+                        <div>
+                            {% if req.helpdesk_staff_email == current_user %}
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="request_id" value="{{ req.request_id }}">
+                                    <button type="submit" name="action" value="accept" class="btn btn-success btn-sm">Accept</button>
+                                </form>
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="request_id" value="{{ req.request_id }}">
+                                    <button type="submit" name="action" value="deny" class="btn btn-danger btn-sm">Deny</button>
+                                </form>
+                            {% else %}
+                                <span class="text-muted">Assigned to {{ req.helpdesk_staff_email }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                 {% endfor %}
-            </div>
-        {% else %}
-            <p class="alert alert-info">No requests at the moment.</p>
-        {% endif %}
+            {% else %}
+                <p class="alert alert-info">No pending requests.</p>
+            {% endif %}
+        </div>
+
+        <div id="resolved" style="display: none;">
+            <h4>✅ Resolved Requests</h4>
+            {% set resolved_requests = requests | rejectattr("request_status", "equalto", 0) | list %}
+            {% if resolved_requests %}
+                {% for req in resolved_requests %}
+                    <div class="card p-3 mb-3">
+                        <p><strong>Sender:</strong> {{ req.sender_email }}</p>
+                        <p><strong>Description:</strong> {{ req.request_desc }}</p>
+                        <p><strong>HelpDesk:</strong> {{ req.helpdesk_staff_email }}</p>
+                        <p><strong>Status:</strong>
+                            {% if req.request_status == 1 %}
+                                <span class="text-success">Approved</span>
+                            {% elif req.request_status == 2 %}
+                                <span class="text-danger">Denied</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="alert alert-info">No resolved requests yet.</p>
+            {% endif %}
+        </div>
     </div>
 </body>
 </html>
+{% endblock %}

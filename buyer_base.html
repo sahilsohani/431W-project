@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Buyer Portal{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="container py-4">
+    <nav class="mb-4">
+        <a href="{{ url_for('buyer_dashboard') }}" class="btn btn-primary">Home</a>
+        <a href="{{ url_for('view_cart') }}" class="btn btn-secondary">Cart</a>
+        <a href="{{ url_for('view_orders') }}" class="btn btn-info">My Orders</a>
+        <a href="{{ url_for('buyer_update_profile') }}" class="btn btn-warning">Profile</a>
+        <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+    </nav>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</body>
+</html>

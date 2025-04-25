@@ -198,7 +198,6 @@ try:
             street_name VARCHAR(255),
             zip_code VARCHAR(10),
             FOREIGN KEY (zip_code) REFERENCES ZipCode(zip_code)
-            ON DELETE NO ACTION
         )
     """)
     
@@ -207,7 +206,7 @@ try:
             email VARCHAR(255) PRIMARY KEY,
             business_name VARCHAR(255),
             business_address_id VARCHAR(255),
-            FOREIGN KEY (email) REFERENCES User(email),
+            FOREIGN KEY (email) REFERENCES User(email) ON DELETE CASCADE,
             FOREIGN KEY (business_address_id) REFERENCES Address(business_address_id)
             ON DELETE CASCADE
         )
@@ -221,7 +220,7 @@ try:
             bank_routing_number VARCHAR(255),
             bank_account_number VARCHAR(255),
             balance VARCHAR(255),
-            FOREIGN KEY (email) REFERENCES User(email),
+            FOREIGN KEY (email) REFERENCES User(email) ON DELETE CASCADE,
             FOREIGN KEY (business_address_id) REFERENCES Address(business_address_id)
             ON DELETE CASCADE
         )
@@ -242,7 +241,7 @@ try:
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Request (
-            request_id INT,
+            request_id BIGINT,
             sender_email VARCHAR(255),
             helpdesk_staff_email VARCHAR(255),
             request_type VARCHAR(255),
@@ -263,7 +262,7 @@ try:
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Product_Listing (
-            product_id INT,
+            product_id BIGINT,
             seller_email VARCHAR(255),
             category VARCHAR(255),
             title VARCHAR(255) NOT NULL,
@@ -281,9 +280,9 @@ try:
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Orders (
-            order_id INT PRIMARY KEY,
+            order_id BIGINT PRIMARY KEY,
             seller_email VARCHAR(255),
-            product_id INT,
+            product_id BIGINT,
             buyer_email VARCHAR(255),
             date VARCHAR(10),
             amount INT,
@@ -297,7 +296,7 @@ try:
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS Review (
-            order_id INT PRIMARY KEY,
+            order_id BIGINT PRIMARY KEY,
             rating DECIMAL(2,1),
             text VARCHAR(255),
             FOREIGN KEY (order_id) REFERENCES Orders(order_id)

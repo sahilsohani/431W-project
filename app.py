@@ -17,6 +17,84 @@ config = {
     'database': 'NittanyBusiness'
 }
 
+def generate_request_id():
+    return random.randint(100000, 999999)  # 6-digit safe number
+
+def update_profile_logic(current_role):
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    email = session['user']
+
+    if request.method == 'POST':
+        new_password = request.form.get('new_password')
+        requested_role = request.form.get('new_role')
+
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor()
+
+        try:
+            # Update password
+            if new_password:
+                hashed_password = hash_password(new_password)
+                cursor.execute("UPDATE User SET password = %s WHERE email = %s", (hashed_password, email))
+                flash("Password updated.", "success")
+
+            # Request role change
+            if requested_role and requested_role != current_role:
+                request_desc = f"Request to change role from {current_role} to {requested_role}"
+                cursor.execute("""
+                    INSERT INTO Request (request_id, sender_email, helpdesk_staff_email, request_type, request_desc, request_status)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    generate_request_id(),
+                    email,
+                    'helpdeskteam@nittybiz.com',
+                    'role_change',
+                    request_desc,
+                    0
+                ))
+                flash("Role change request submitted to HelpDesk.", "info")
+
+            conn.commit()
+        except mysql.connector.Error as err:
+            flash(f"MySQL Error: {err}", "danger")
+        finally:
+            cursor.close()
+            conn.close()
+
+    user = {'email': email}
+    if current_role == 'buyer':
+        return render_template('buyer_profile.html', user=user)
+    else:
+        return render_template('seller_profile.html', user=user)
+
+def get_user_role(email):
+    try:
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT 1 FROM Buyer WHERE email = %s", (email,))
+        if cursor.fetchone():
+            return 'buyer'
+
+        cursor.execute("SELECT 1 FROM Seller WHERE email = %s", (email,))
+        if cursor.fetchone():
+            return 'seller'
+
+        cursor.execute("SELECT 1 FROM HelpDesk WHERE email = %s", (email,))
+        if cursor.fetchone():
+            return 'helpdesk'
+
+        return None
+    except mysql.connector.Error as err:
+        print(f"Error detecting role: {err}")
+        return None
+    finally:
+        cursor.close()
+        conn.close()
+
+
 # Function to hash passwords using SHA-256
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -40,14 +118,6 @@ def verify_user(email, password):
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         return False
-
-@app.route('/dashboard')
-def dashboard():
-    if 'user' not in session:
-        flash('Please log in first.', 'warning')
-        return redirect(url_for('login'))
-    
-    return render_template('dashboard.html', username=session['user'])
 
 @app.route('/logout')
 def logout():
@@ -81,8 +151,9 @@ def register():
             # Insert new user
             cursor.execute("INSERT INTO user (email, password) VALUES (%s, %s)", (email, hashed_password))
             conn.commit()
-            flash('Registration successful! You can now log in.', 'success')
-            return redirect(url_for('login'))
+            session['user'] = email
+            flash('Registration successful! Please select your role.', 'info')
+            return redirect(url_for('choose_role'))
 
         except mysql.connector.Error as err:
             print(f"Error: {err}")
@@ -355,7 +426,6 @@ def checkout():
     cursor = conn.cursor(dictionary=True)
 
     try:
-        # Step 1: Show form
         if request.method == 'GET':
             if not cart:
                 flash("Your cart is empty.", "warning")
@@ -369,17 +439,45 @@ def checkout():
                     total += product['price'] * quantity
                     cart_items.append(product)
 
-            # Load buyer’s credit cards
+            # Load buyer's saved credit cards
             cursor.execute("SELECT * FROM Credit_Card WHERE owner_email = %s", (session['user'],))
             credit_cards = cursor.fetchall()
 
             return render_template('checkout.html', cart_items=cart_items, total=total, credit_cards=credit_cards)
 
-        # Step 2: Handle submission
+        # POST (Placing the order)
         selected_card = request.form.get('payment_method')
+
         if not selected_card:
-            flash("Please select a payment method.", "danger")
-            return redirect(url_for('checkout'))
+            # No card selected — assume buyer is entering new card
+            new_card_num = request.form.get('new_card_num')
+            new_card_type = request.form.get('new_card_type')
+            new_expire_month = request.form.get('new_expire_month')
+            new_expire_year = request.form.get('new_expire_year')
+            new_security_code = request.form.get('new_security_code')
+
+            if not (new_card_num and new_card_type and new_expire_month and new_expire_year and new_security_code):
+                flash("Please fill out all new card fields.", "danger")
+                return redirect(url_for('checkout'))
+
+            # Save new card to Credit_Card table
+            cursor.execute("""
+                INSERT INTO Credit_Card (credit_card_num, card_type, expire_month, expire_year, security_code, owner_email)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                new_card_num,
+                new_card_type,
+                new_expire_month,
+                new_expire_year,
+                new_security_code,
+                session['user']
+            ))
+            conn.commit()
+
+            payment_card = new_card_num
+        else:
+            # Buyer selected a saved card
+            payment_card = selected_card
 
         for product_id, quantity in cart.items():
             # Fetch product again to get seller and price
@@ -396,7 +494,7 @@ def checkout():
             while cursor.fetchone():
                 order_id = random.randint(100000, 999999)
 
-            # Insert into Orders
+            # Insert into Orders table
             cursor.execute("""
                 INSERT INTO Orders (order_id, seller_email, product_id, buyer_email, date, amount, payment)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -410,18 +508,13 @@ def checkout():
                 product['price'] * quantity
             ))
 
-            # Decrement stock
-            if quantity > product['stock']:
-                flash(f"Insufficient stock for {product['name']}.", "danger")
-                return redirect(url_for('view_cart'))
-
-            # Proceed to update stock
+            # Decrease stock
             cursor.execute("""
-                UPDATE Product_Listing SET stock = stock - %s
+                UPDATE Product_Listing
+                SET stock = stock - %s
                 WHERE product_id = %s AND stock >= %s
             """, (quantity, product_id, quantity))
 
-            # Optional: Verify update was successful
             if cursor.rowcount == 0:
                 flash(f"Failed to update stock for {product['name']} due to concurrent order.", "danger")
                 return redirect(url_for('view_cart'))
@@ -441,6 +534,7 @@ def checkout():
         conn.close()
 
     return redirect(url_for('view_orders'))
+
 
 @app.route('/orders')
 @login_required
@@ -481,11 +575,6 @@ def add_to_cart(product_id):
     flash("Product added to cart!", "success")
     return redirect(request.referrer or url_for('view_cart'))
 
-@app.route('/profile/update')
-@login_required
-def update_profile():
-    return render_template('shared/update_profile.html')
-
 @app.route('/seller/product/new', methods=['GET', 'POST'])
 @login_required
 @seller_required
@@ -512,7 +601,7 @@ def list_product():
                 INSERT INTO Product_Listing (seller_email, product_id, category, title, name, detail, stock, price, status)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                session['user'], int(uuid.uuid4().int >> 64), category,
+                session['user'], product_id, category,
                 title, title, description, quantity, price, 1
             ))
             conn.commit()
@@ -716,19 +805,64 @@ def resolve_requests():
                            requests=requests,
                            current_user=session['user'])
 
-@app.route('/helpdesk/requests')
+@app.route('/helpdesk/requests', methods=['GET', 'POST'])
 @login_required
 @helpdesk_required
 def view_requests():
-    try:
-        conn = mysql.connector.connect(**config)
-        cursor = conn.cursor(dictionary=True)
+    conn = mysql.connector.connect(**config)
+    cursor = conn.cursor(dictionary=True)
 
+    try:
+        if request.method == 'POST':
+            request_id = request.form.get('request_id')
+            action = request.form.get('action')
+
+            cursor.execute("SELECT * FROM Request WHERE request_id = %s", (request_id,))
+            req = cursor.fetchone()
+
+            if not req:
+                flash("Request not found.", "danger")
+                return redirect(url_for('view_requests'))
+
+            if req['request_status'] != 0:
+                flash("Request already processed.", "warning")
+                return redirect(url_for('view_requests'))
+
+            sender = req['sender_email']
+            desc = req['request_desc']
+
+            if action == 'accept':
+                # Determine new role from description
+                new_role = 'seller' if 'to seller' in desc else 'buyer'
+                old_role = 'buyer' if new_role == 'seller' else 'seller'
+
+                # Move user from old role table to new role table
+                cursor.execute(f"DELETE FROM {old_role.capitalize()} WHERE email = %s", (sender,))
+                cursor.execute(f"INSERT INTO {new_role.capitalize()} (email) VALUES (%s)", (sender,))
+
+                cursor.execute("""
+                    UPDATE Request
+                    SET request_status = 1, helpdesk_staff_email = %s
+                    WHERE request_id = %s
+                """, (session['user'], request_id))
+                flash(f"Accepted request: {sender} is now a {new_role}.", "success")
+
+            elif action == 'deny':
+                cursor.execute("""
+                    UPDATE Request
+                    SET request_status = 2, helpdesk_staff_email = %s
+                    WHERE request_id = %s
+                """, (session['user'], request_id))
+                flash("Denied role switch request.", "info")
+
+            conn.commit()
+            return redirect(url_for('view_requests'))
+
+        # Load all requests
         cursor.execute("""
             SELECT * FROM Request
-            WHERE helpdesk_staff_email = %s
             ORDER BY request_status ASC, request_id DESC
-        """, (session['user'],))
+        """)
         requests = cursor.fetchall()
 
     except mysql.connector.Error as err:
@@ -740,7 +874,8 @@ def view_requests():
         cursor.close()
         conn.close()
 
-    return render_template('helpdesk_view_requests.html', requests=requests)
+    return render_template('helpdesk_view_requests.html', requests=requests, current_user=session['user'])
+
 
 @app.route('/admin/system')
 @login_required
@@ -748,7 +883,82 @@ def view_requests():
 def system_dashboard():
     return render_template('helpdesk/system_dashboard.html')
 
+@app.route('/helpdesk/approve/<int:request_id>', methods=['POST'])
+@login_required
+@helpdesk_required
+def approve_request(request_id):
+    if session.get('role') != 'helpdesk':
+        return redirect(url_for('login'))
 
+    conn = mysql.connector.connect(**config)
+    cursor = conn.cursor(dictionary=True)
+
+    # Get request details
+    cursor.execute("SELECT * FROM Request WHERE request_id = %s", (request_id,))
+    req = cursor.fetchone()
+
+    if req and req['request_status'] == 0:
+        sender = req['sender_email']
+        desc = req['request_desc']
+
+        new_role = 'seller' if 'to seller' in desc else 'buyer'
+        old_role = 'buyer' if new_role == 'seller' else 'seller'
+
+        # Update user role
+        cursor.execute("UPDATE User SET role = %s WHERE email = %s", (new_role, sender))
+
+        # Remove from old role table and insert into new
+        cursor.execute(f"DELETE FROM {old_role.capitalize()} WHERE email = %s", (sender,))
+        cursor.execute(f"INSERT INTO {new_role.capitalize()} (email) VALUES (%s)", (sender,))
+
+        # Update request status
+        cursor.execute("UPDATE Request SET request_status = 1 WHERE request_id = %s", (request_id,))
+        conn.commit()
+        flash(f"Role updated to {new_role} for {sender}", "success")
+
+    cursor.close()
+    conn.close()
+    return redirect(url_for('view_requests'))
+
+@app.route('/orders/delete/<int:order_id>', methods=['POST'])
+@login_required
+@buyer_required
+def delete_order(order_id):
+    try:
+        conn = mysql.connector.connect(**config)
+        cursor = conn.cursor()
+
+        # Only delete the order if it belongs to the current user
+        cursor.execute("""
+            DELETE FROM Orders
+            WHERE order_id = %s AND buyer_email = %s
+        """, (order_id, session['user']))
+
+        if cursor.rowcount:
+            flash("Order canceled and deleted successfully.", "success")
+        else:
+            flash("Unable to delete this order.", "warning")
+
+        conn.commit()
+    except mysql.connector.Error as err:
+        flash(f"MySQL Error: {err}", "danger")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return redirect(url_for('view_orders'))
+
+@app.route('/buyer/profile', methods=['GET', 'POST'])
+@login_required
+@buyer_required
+def buyer_update_profile():
+    return update_profile_logic('buyer')
+
+@app.route('/seller/profile', methods=['GET', 'POST'])
+@login_required
+@seller_required
+def seller_update_profile():
+    return update_profile_logic('seller')
 
 if __name__ == '__main__':
     app.run(debug=True)
