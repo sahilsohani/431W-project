@@ -2,16 +2,23 @@
 
 ## Project Overview
 
-NittanyBusiness is a Flask-based web application providing secure user authentication using MySQL and Bootstrap.
+NittanyBusiness is a Flask-based web application that enables secure user authentication, session management, and user role assignment, backed by a MySQL database and styled with Bootstrap.
 
 ## Features
 
-- User authentication with email and password
-- Secure password hashing (SHA-256)
-- Session-based login management
-- Responsive Bootstrap interface
-- Protected dashboard route
-- User logout functionality
+- Email and password-based user registration and login
+
+- Secure password storage using SHA-256 hashing
+
+- Session-based user authentication
+
+- Protected route access (dashboard, profile management, etc.)
+
+- Responsive and mobile-friendly UI with Bootstrap
+
+- Flash messaging for user feedback
+
+- Role-based user redirection (Buyer, Seller, Helpdesk)
 
 ## Prerequisites
 
@@ -30,7 +37,7 @@ pip install flask mysql-connector-python
 ```
 
 3. Database Setup:
-- Create a MySQL database named `NittanyBusiness`
+- Create a MySQL database named `NittanyBusiness`: CREATE DATABASE NittanyBusiness;
 - Update database credentials in `app.py` and `loader.py`:
 ```python
 config = {
@@ -60,20 +67,64 @@ Access the application at `http://localhost:5000`
 
 ```
 .
-├── app.py          # Main Flask application
-├── loader.py       # Database population script
-└── templates/
-    ├── login.html      # Login page template
-    └── dashboard.html  # Dashboard template
-```
+├── app.py                   # Main Flask application 
+├── loader.py                # Database setup and CSV data population script
+├── role_required.py         # Role-based access control decorators
+├── Address.csv              # CSV datasets 
+├── Buyers.csv
+├── Categories.csv
+├── Credit_Cards.csv
+├── Helpdesk.csv
+├── Orders.csv
+├── Product_Listings.csv
+├── Requests.csv
+├── Reviews.csv
+├── Sellers.csv
+├── Users.csv
+├── Zipcode_Info.csv
+├── templates/               # HTML templates
+│   ├── buyer_base.html
+│   ├── buyer_dashboard.html
+│   ├── buyer_products.html
+│   ├── buyer_profile.html
+│   ├── buyer_search_results.html
+│   ├── buyer_view_cart.html
+│   ├── buyer_view_categories.html
+│   ├── buyer_view_orders.html
+│   ├── category.html
+│   ├── checkout.html
+│   ├── choose_role.html
+│   ├── dashboard.html
+│   ├── helpdesk_base.html
+│   ├── helpdesk_dashboard.html
+│   ├── helpdesk_resolve_requests.html
+│   ├── helpdesk_view_requests.html
+│   ├── list_product.html
+│   ├── login.html
+│   ├── register.html
+│   ├── seller_base.html
+│   ├── seller_dashboard.html
+│   ├── seller_edit_product.html
+│   ├── seller_list_product.html
+│   ├── seller_manage_products.html
+│   ├── seller_profile.html
+│   ├── seller_view_feedback.html
+│   ├── view_cart.html
+├── README.md               
+
+``` 
 
 ## User Authentication Workflow
 
-1. User enters email and password
-2. Credentials are hashed and verified against database
-3. Successful login creates a session
-4. User redirected to dashboard
-5. Logout destroys the session
+1. User submits email and password via login form.
+
+2. Password is hashed (SHA-256) and compared with the database.
+
+3. On success, a session cookie is created.
+
+4. User is redirected to their role-specific dashboard.
+
+5. Logout operation clears the session.
 
 ## Security Measures
 
@@ -82,7 +133,7 @@ Access the application at `http://localhost:5000`
 - Session-based authentication
 - Flash messages for login feedback
 
-## Technologies
+## Technologies Used
 
 - Python
 - Flask
@@ -94,10 +145,15 @@ Access the application at `http://localhost:5000`
 
 ## Troubleshooting
 
-- Ensure MySQL service is running
+- Ensure MySQL service is running: 
+```bash
+brew services start mysql
+```
 - Verify database credentials
 - Check CSV file path in `loader.py`
-- Confirm all required packages are installed
+- Confirm all required packages are installed:
+```bash
+pip install flask mysql-connector-python
 
 
 
